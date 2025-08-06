@@ -1,0 +1,9 @@
+python-dotenv
+uvicorn
+fastapi
+psycopg2
+colorama
+fastapi[all]
+python-multipart
+aiofiles
+requests
