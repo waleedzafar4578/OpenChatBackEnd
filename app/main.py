@@ -1,20 +1,14 @@
-from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router as api_router
 from app.api.wsroutes import ws_router, ws_api_router
-import os
 app = FastAPI()
 
-
-load_dotenv()
-url = os.getenv("url")
-print("---------->>>>",url)
 # Add CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=url,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
