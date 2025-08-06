@@ -9,5 +9,3 @@ DB_HOST = os.getenv("host_")
 DB_NAME = os.getenv("dbname_")
 DB_USER = os.getenv("user_")
 DB_PASSWORD = os.getenv("password_")
-
-
