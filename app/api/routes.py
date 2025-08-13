@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from app.db.queries import post_sms
-from app.modules.APIResponse import APIResponse
+# from app.db.queries import post_sms
+# from app.modules.APIResponse import APIResponse
 # from app.utils.DateTime import camparedDate
 router = APIRouter()
 
@@ -14,6 +14,6 @@ router = APIRouter()
 #     )
 
 
-@router.get("/send", response_model=APIResponse)
-async def send_sms(userSms: str):
-    return post_sms(userSms)
+# @router.get("/send", response_model=APIResponse)
+# async def send_sms(userSms: str):
+#     return post_sms(userSms)

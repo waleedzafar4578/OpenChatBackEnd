@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import router as api_router
+# from app.api.routes import router as api_router
 from app.api.wsroutes import ws_router, ws_api_router
 app = FastAPI()
 
@@ -8,7 +8,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    # allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -26,6 +26,6 @@ async def identify_the_user(request: Request, call_next):
     return response
 
 # Register API
-app.include_router(api_router)
+# app.include_router(api_router)
 app.include_router(ws_router)
 app.include_router(ws_api_router)
