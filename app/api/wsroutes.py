@@ -28,13 +28,14 @@ sms_chache = []
 
 
 # This is fucntion which use for store sms in chache.
-def chache_sms(user_name: str, sms_text: str, date: str):
+def chache_sms(user_name: str, sms_text: str, date: str, roomName: str):
     show.info(f"[SMSChache] call with the values:{
-              user_name}-{sms_text}-{date}")
+              user_name}-{sms_text}-{date}-{roomName}")
     sms_chache.append({
         "name": user_name,
         "sms": sms_text,
-        "created_at": date
+        "created_at": date,
+        "room": roomName
     })
 
 # This fucntion use for flush the sms into database.
@@ -45,10 +46,11 @@ def flush_sms_to_db():
         return
 
     query = """
-      INSERT INTO messages(name,sms,created_at) VALUES (%s,%s,%s);
+      INSERT INTO messages(name,sms,created_at,room) VALUES (%s,%s,%s,%s);
     """
 
-    values = [(i["name"], i["sms"], i["created_at"]) for i in sms_chache]
+    values = [(i["name"], i["sms"], i["created_at"], i["room"])
+              for i in sms_chache]
 
     # Get database connection.
     # Make cursor for this connection.
@@ -105,7 +107,10 @@ async def websocket_chat(websocket: WebSocket):
     # If user come first time then store his name along socket address.
     await websocket.accept()
     userName = websocket.query_params.get("userInfo")
+    roomName = websocket.query_params.get("roomName")
     show.info(f"[Chat Socket] User Connected with name of {userName}")
+    show.info(f"[Chat Socket] User Connected with roomName {roomName}")
+
     if userName in user_sessions.keys():
         show.info("[Chat socket] User already in this session.")
         pass
@@ -114,7 +119,10 @@ async def websocket_chat(websocket: WebSocket):
         return
     else:
         show.info(f"[Chat Socket]  Socket created for {userName}. ")
-        user_sessions[userName] = websocket
+        user_sessions[userName] = {
+            'websocket': websocket,
+            'roomName': roomName
+        }
 
     await send_user_list()
     await send_chache_sms_to_user(userName)
@@ -127,20 +135,28 @@ async def websocket_chat(websocket: WebSocket):
             show.info(f"[Chat socket loop] Reciev SMS from user with socket {
                       websocket} which related to the username: {userName} data which revieve:{data_str}")
             data = json.loads(data_str)
-            chache_sms(userName, data['sms'], data["date"])
-            if len(sms_chache) > len(user_sessions) or len(sms_chache) > 5:
-                flush_sms_to_db()
-            data = MessageOut(
-                name=userName,
-                sms=data['sms'],
-                created_at=data['date']
-            )
-            response = {
-                "type": "messages",
-                "data": data
-            }
-            for user in user_sessions:
-                await user_sessions[user].send_json(jsonable_encoder(response), mode="text")
+            if data['smsType'] == 'room':
+                print("=======================================")
+                user_sessions[data['userInfo']]['roomName'] = data['room']
+                await send_user_list()
+            elif data['smsType'] == 'sms':
+                chache_sms(data['userInfo'], data['sms'],
+                           data["date"], data["roomName"])
+                if len(sms_chache) > len(user_sessions) or len(sms_chache) > 5:
+                    flush_sms_to_db()
+                data = MessageOut(
+                    name=userName,
+                    sms=data['sms'],
+                    created_at=data['date'],
+                    room=data['roomName']
+                )
+                response = {
+                    "type": "messages",
+                    "data": data,
+                    "roomName": user_sessions[userName]['roomName']
+                }
+                for user in user_sessions:
+                    await user_sessions[user]['websocket'].send_json(jsonable_encoder(response), mode="text")
     except WebSocketDisconnect:
         flush_sms_to_db()
         show.info(f"{userName}: client disconnected!")
@@ -150,13 +166,25 @@ async def websocket_chat(websocket: WebSocket):
 
 
 async def send_user_list():
-    username_list = list(user_sessions.keys())
-    response = {
-        "type": "userList",
-        "data": username_list
+    username_list = list()
+    room_count = {
+        "common": 0,
+        "Game": 0,
+        "Cricket": 0
     }
     for user in user_sessions:
-        await user_sessions[user].send_json(jsonable_encoder(response), mode="text")
+        room_count[user_sessions[user]['roomName']] += 1
+        username_list.append({
+            'room': user_sessions[user]['roomName'],
+            'name': user
+        })
+    response = {
+        "type": "userList",
+        "data": username_list,
+        "roomCount": room_count
+    }
+    for user in user_sessions:
+        await user_sessions[user]['websocket'].send_json(jsonable_encoder(response), mode="text")
 
     show.info("[Send User List] send user name list to all connected user.")
 
@@ -165,9 +193,10 @@ async def send_chache_sms_to_user(user: str):
     show.info("[Success] Chache Sms sent!")
     bluk_sms = {
         "type": "chacheSms",
-        "data": sms_chache
+        "data": sms_chache,
+        "roomName": user_sessions[user]['roomName']
     }
     try:
-        await user_sessions[user].send_json(jsonable_encoder(bluk_sms), mode="text")
+        await user_sessions[user]['websocket'].send_json(jsonable_encoder(bluk_sms), mode="text")
     except:
         show.info("[Error] Selected user is not exist!")
