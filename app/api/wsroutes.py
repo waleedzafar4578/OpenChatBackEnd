@@ -162,7 +162,8 @@ async def websocket_chat(websocket: WebSocket):
         show.info(f"{userName}: client disconnected!")
         if userName in user_sessions.keys():
             user_sessions.pop(userName)
-        await send_user_list()
+        if len(user_sessions.keys()) != 0:
+            await send_user_list()
 
 
 async def send_user_list():
@@ -183,8 +184,11 @@ async def send_user_list():
         "data": username_list,
         "roomCount": room_count
     }
-    for user in user_sessions:
-        await user_sessions[user]['websocket'].send_json(jsonable_encoder(response), mode="text")
+    try:
+        for user in user_sessions:
+            await user_sessions[user]['websocket'].send_json(jsonable_encoder(response), mode="text")
+    except RuntimeError as e:
+        show.info(f"Error:Not able to send message the {user}: {e}")
 
     show.info("[Send User List] send user name list to all connected user.")
 
